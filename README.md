@@ -1,6 +1,6 @@
 # Recognizing Handwritten Digits
 
-This project is a simple implementation of a Neural Network to recognize handwritten digits using the MNIST dataset. The neural network is built from scratch in Go.
+This project is a simple implementation of a Neural Network to recognize handwritten digits using the MNIST dataset[^siramdasu]. The neural network is built from scratch in Go.
 
 # Project Structure
 
@@ -32,55 +32,100 @@ The goal of this project is to learn about one of the most basic forms of neural
 
 ## The Neural Network
 
-The model of neural network we'll be my interpretation of the _Multilayer Perceptron_, which I'll be refering as MLP. The MLP is defined as a tuple of the so called _layers_. We shall define those first.
+The model of neural network we'll be my interpretation of the _Multilayer Perceptron_[^sanderson], which I'll be refering as MLP. The MLP is defined as a tuple of the so called _layers_. We shall define those first.
 
-A layer, informally, takes an vector input and produces an vector output, i.e., its a function. The way it operates by having a variation of the Pitts-McCulloch neuron[^1], which follow an "all-or-none" activation principle, our neurons have _activation values_ on the real numbers.
+A layer, informally, takes an vector input and produces an vector output, i.e., its a function. The way it operates by having a variation of the Pitts-McCulloch neuron[^mcculloch;pitts], which follow an "all-or-none" activation principle, our neurons have _activation values_ on the real numbers.
 
 ### Definition 1. Neuron
 
-A neuron is a thing that possesses a _activation value_ $`x \in \Bbb{R}`$, connections called _weights_ $`\mathbf{w} = (w_i)`$, $`\mathbf{w} \in \Bbb{R}^n`$, a _bias_ $`b \in \Bbb{R}`$ and an _activation function_ $`\sigma : \Bbb{R} \to \Bbb{R}`$. The activation of a neuron is determined by its input $`\mathbf{u} = (u_i)`$, $`\mathbf{u} \in \Bbb{R}^n`$:
+A neuron is a thing that possesses a _activation value_ $`a \in \Bbb{R}`$, connections called _weights_ $`\mathbf{w} = (w_i)`$, $`\mathbf{w} \in \Bbb{R}^n`$, a _bias_ $`b \in \Bbb{R}`$ and an _activation function_ $`\sigma : \Bbb{R} \to \Bbb{R}`$. The activation of a neuron is determined by its input $`\mathbf{u} = (u_i)`$, $`\mathbf{u} \in \Bbb{R}^n`$:
 
 ```math
-x = \sigma \left( b + \sum_{i = 1}^{n} {w_i u_i} \right)
+a = \sigma \left( b + \sum_{i = 1}^{n} {w_i u_i} \right)
 ```
 
 Or simply:
 
 ```math
-x = \sigma \left( \mathbf{w} \cdot \mathbf{u} + b \right)
+a = \sigma \left( \mathbf{w} \cdot \mathbf{u} + b \right)
 ```
 
 ### Definition 2. Layer
 
-A layer is a triple $L = (\mathbf{W}, \mathbf{b}, \sigma)$, where, for a layer with $`m`$ input activation values and $`n`$ neurons:
+A layer is a collection of neurons, since the activation of a single neuron can be thought of as a dot product added to a bias and passed through a activation function, the natural way to extend this idea is via matrices. A layer is a triple $`L = (\mathbf{W}, \mathbf{b}, \sigma)`$, where, for a layer with $`m_L`$ _input activation values_ and $`n_L`$ neurons:
 
-- $`\mathbf{W} = [w_{i,j}]`$, $`\mathbf{W} \in \mathcal{M}_{n \times m} (\Bbb{R})`$ is a weight matrix, the weight $`w_{p,q}`$ is the weight of the conection between the $`p`$-th position of the input vector and the $`q`$-th neuron;
+- $`\mathbf{W}^{(L)} = [w^{(L)}_{i,j}]`$, $`\mathbf{W}^{(L)} \in \mathcal{M}_{n_L \times m_L} (\Bbb{R})`$, is a matrix of weights, whereas $`w^{(L)}_{p,q}`$ is the connection between the $`q`$-th input activation value and the $`p`$-th neuron;
 
-- $`\mathbf{b} = [b_{i}]`$, $`\mathbf{b} \in \mathcal{M}_{n \times 1} (\Bbb{R})`$ is a bias column vector, whereas $`b_p`$ is the bias of the $`p`$-th neuron;
+- $`\mathbf{b}^{(L)} = [b^{(L)}_i]`$, $`\mathbf{b}^{(L)} \in \mathcal{M}_{n_L \times 1} (\Bbb{R})`$, is column vector of biases, whereas $`b^{(L)}_p`$ is the bias for the $`p`$-th neuron;
 
-- $`\sigma : \Bbb{R} \to \Bbb{R}`$ is an activation function.
+- $`\sigma_L : \Bbb{R} \to \Bbb{R}`$ is an activation function, we allow $`\sigma_L([v_{i,j}]) = [\sigma_L(v_{i,j})]`$.
 
-Given that, the activation column vector $`\mathbf{x} \in \mathcal{M}_{n \times 1} (\Bbb{R})`$ produced by this layer on the input column vector $`\mathbf{u} \in \mathcal{M}_{m \times 1} (\Bbb{R})`$ is:
+Given an input activation vector $`\mathbf{u} = [u_i]`$, the activation of each neuron of the layer, $`\mathbf{a}^{(L)} = [a^{(L)}_j]`$ is defined:
 
 ```math
-\mathbf{x} = L.A(\mathbf{u}) = \sigma \left( \mathbf{W}\mathbf{u} + \mathbf{b} \right)
+a^{(L)}_i = \sigma_L \left( b^{(L)}_{i} + \sum_{j = 1}^{m_L} {w^{(L)}_{i,j} u_j} \right)
+```
+
+Or:
+
+```math
+\mathbf{a}^{(L)} = \sigma_L(\mathbf{W}^{(L)}\mathbf{u} + \mathbf{b}^{(L)})
 ```
 
 ### Definition 3. Neural Network
 
-A neural network $`\mathcal{N}`$ is a ordered collection of possibly varied size layers. $`\mathcal{N} = (L_i)`$ for $`1 \le i \in \Bbb{N}`$, where $`L_i`$ is a layer such that is weight matrix height is equal to $`L_{i + 1}`$ weight matrix width, if it exists. The _input vector_ $`\mathbf{u} \in \mathcal{M}_{m \times 1} (\Bbb{R})`$ has $`m`$ as the width of $`L_1`$ and the _output vector_ $`\mathbf{x} \in \mathcal{M}_{n \times 1} (\Bbb{R})`$ has $`n`$ as the height of the last $`L_i`$. The aplication of the neural network is given:
+A neural network is a collection of finite ordered layers $`\mathcal{N} = (L_i)`$. In notation, to reference, for example, the weight matrix of $`L_i`$, instead of $`\mathbf{W}^{(L_i)}`$, we can do simply $`\mathbf{W}^{(i)}`$. Note that $`m_L = n_{L - 1}`$ for $`1 \le L \le |\mathcal{N}|`$. With that said, the _output activation vector_ of the network is $\mathbf{y} = \mathbf{a}^{(|\mathcal{N}|)}$, achieved through:
 
 ```math
 \begin{align*}
-    \mathbf{x} &= ().f(\mathbf{u}) = \mathbf{u} \\
-    \mathbf{x} &= (L_1, L_2, \dots, L_n).f(\mathbf{u}) = (L_2, \dots, L_n).(L_1.A(\mathbf{u}))
+    a^{(0)}_i(\mathbf{u}) &= u_i \\
+    a^{(L)}_i(\mathbf{u}) &= \sigma_L \left( b^{(L)}_{i} + \sum_{j = 1}^{m_L} {w^{(L)}_{i,j} a^{(L - 1)}_j(\mathbf{u})} \right) \\
 \end{align*}
 ```
 
-# References
+Or:
 
-- https://www.cis.jhu.edu/~sachin/digit/digit.html
-- https://github.com/vardhan-siramdasu/Kaggle-Digit-Recognizer/blob/main/data/
-- https://www.youtube.com/watch?v=aircAruvnKk&list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi
+```math
+\begin{align*}
+    \mathbf{a}^{(0)}(\mathbf{u}) &= \mathbf{u} \\
+    \mathbf{a}^{(L)}(\mathbf{u}) &= \sigma_L(\mathbf{W}^{(L)}\mathbf{a}^{(L - 1)}(\mathbf{u}) + \mathbf{b}^{(L)}) \\
+\end{align*}
+```
 
-[^1]: McCULLOCH, Warren S.; PITTS, Walter. A LOGICAL CALCULUS OF THE IDEAS IMMANENT IN NERVOUS ACTIVITY\*. **Bulletin of Mathematical Biology**. Vol. 52, No. 1/2, pp. 99-115, 1990. Available in: https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf. Access in: 11 of May, 2025.
+We will intruduce a variable $`\mathbf{z}^{(L)} = [z^{(L)}_i]`$ that represents the middle step, before the application of $`\sigma_L`$, that is, $`\mathbf{z}^{(L)} = \mathbf{W}^{(L)}\mathbf{a}^{(L - 1)} + \mathbf{b}^{(L)}`$ and $`z^{(L)}_i = b^{(L)}_{i} + \sum_{j = 1}^{m_L} {w^{(L)}_{i,j} a^{(L - 1)}_j}`$. Now we may proceed to training the network.
+
+In order to train a network, we must have an explicit way to tell how good is the network doing. We will measure it through a cost function.
+
+### Definition 4. Cost Function
+
+Given a labeled dataset $`X = \left\{(\mathbf{u}, \mathbf{y}) | \mathbf{u} \in \mathcal{M}_{m_1 \times 1} (\Bbb{R}), \mathbf{y} \in \mathcal{M}_{n_{|\mathcal{N}|} \times 1} (\Bbb{R}) \right\}`$, where $`\mathbf{u}`$ is the _input_ and $`\mathbf{y}`$ is the _label_, the cost function will put the input through the network and analyze it against the label. It is done the following way:
+
+```math
+C(X, \mathcal{N}) = \sum_{(\mathbf{u}, \mathbf{y}) \in X} { {\left\lVert \mathbf{a}^{(|\mathcal{N}|)}(\mathbf{u}) - \mathbf{y} \right\rVert}^2 }
+```
+
+With that, we will calculate the gradient of the cost function in relation to each parameter in the neural network $`\mathcal{N}`$.
+
+### Example 1
+
+```math
+\def\pd#1#2{\frac{\partial#1}{\partial#2}}
+```
+
+Consider and neural network $`\mathcal{N}`$, its cost function gradient would look like:
+
+```math
+\begin{align*}
+    \nabla C
+        &= \pd{C}{a^L} \\
+        &= \pd{C}{z^L}\pd{z}{a^L} \\
+\end{align*}
+```
+
+<!-- - https://www.cis.jhu.edu/~sachin/digit/digit.html -->
+
+[^siramdasu]: SIRAMDASU, Vardhan. KAGGLE-DIGIT-RECOGNIZER. **Github repository Kaggle-Digit-Recognizer**. Avaliable in: https://github.com/vardhan-siramdasu/Kaggle-Digit-Recognizer/blob/main/data/. Access in: 11 of May, 2025.
+
+[^sanderson]: SANDERSON, Grant. NEURAL NETWORKS. **Youtube channel 3Blue1Brown**. Available in: https://www.youtube.com/watch?v=aircAruvnKk&list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi. Access in: 11 of May, 2025.
+
+[^mcculloch;pitts]: McCULLOCH, Warren S.; PITTS, Walter. A LOGICAL CALCULUS OF THE IDEAS IMMANENT IN NERVOUS ACTIVITY\*. **Bulletin of Mathematical Biology**. Vol. 52, No. 1/2, pp. 99-115, 1990. Available in: https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf. Access in: 11 of May, 2025.
