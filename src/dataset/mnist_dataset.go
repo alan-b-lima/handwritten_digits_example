@@ -7,12 +7,10 @@ import (
 	"strconv"
 
 	"github.com/alan-b-lima/handwritten_digits_example/src/model"
+	"github.com/alan-b-lima/handwritten_digits_example/src/nnmath"
 )
 
-type Digit = model.Sample[byte]
-type Dataset []Digit
-
-func LoadDataset(path string) (Dataset, error) {
+func LoadDataset(path string) (model.Dataset, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -31,13 +29,13 @@ func LoadDataset(path string) (Dataset, error) {
 	return _ProcessCsv(result)
 }
 
-func _ProcessCsv(csv_input [][]string) (Dataset, error) {
+func _ProcessCsv(csv_input [][]string) (model.Dataset, error) {
 
 	if len(csv_input[0]) != 28*28+1 {
 		return nil, errors.ErrUnsupported
 	}
 
-	var dataset Dataset
+	var dataset model.Dataset
 
 	for i := 1; i < len(csv_input); i++ {
 		row := csv_input[i]
@@ -49,7 +47,7 @@ func _ProcessCsv(csv_input [][]string) (Dataset, error) {
 
 		pixels := make([]float64, 28*28)
 
-		for j := 1; j < len(csv_input[j]); j++ {
+		for j := 1; j < len(row); j++ {
 			pixel, err := strconv.Atoi(row[j])
 			if err != nil {
 				return nil, errors.New("data: bad csv")
@@ -58,11 +56,24 @@ func _ProcessCsv(csv_input [][]string) (Dataset, error) {
 			pixels[j-1] = float64(pixel) / 255.0
 		}
 
-		dataset = append(dataset, Digit{
-			Label:  byte(label),
-			Values: pixels,
+		dataset = append(dataset, model.Sample{
+			Label:  LABELS[label],
+			Values: nnmath.NewVectorData(28*28, pixels),
 		})
 	}
 
 	return dataset, nil
+}
+
+var LABELS = []nnmath.Vector{
+	{Rows: 10, Cols: 1, Data: []float64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 1, 0, 0, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 0, 1, 0, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 0, 0, 0, 1, 0, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 0, 0, 0, 0, 1, 0}},
+	{Rows: 10, Cols: 1, Data: []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
 }
